@@ -1,53 +1,60 @@
 import socket
+import os
 import time
-from time import sleep
 
-print("INICIO")
+# 3 Inicializando client
+print("Configurando cliente UDP\n")
 
-msgFromClient       = "Hello UDP Server"
+hostServer = '192.168.56.1'
 
-bytesToSend         = str.encode(msgFromClient)
+HOST = hostServer
+PORT = 5000
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+ADDRESS = (HOST, PORT)
+sock.connect(ADDRESS)
+sock.settimeout(70.0)
 
-hostServer = input('Digite o IP do servidor: ')
+# 4 Enviando arquivos ao servidor
+file_paths = os.listdir()
+print("Enviando nomes dos arquivos...")
+for file in file_paths:
+    sock.sendall(file.encode())
 
-#"192.168.56.1"
+sock.sendall("stop".encode())
 
-serverAddressPort   = (hostServer, 5555)
 
-bufferSize          = 2000
+# 7 Esperando resposta do servidor sobre qual arquivo enviar
+print("Esperando resposta do servidor...")
+msg = sock.recv(4)
+index = int.from_bytes(msg, "little")
 
-# Create a UDP socket at client side
+# 8 Abrindo arquivo para ser enviado
 
-UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
- 
-# Send to server using created UDP socket
+file = open(file_paths[index], "rb")
+file_size = os.path.getsize(file_paths[index])  # Size in bits
+pacote_em_kilobytes = 512
+pacote_em_bytes = pacote_em_kilobytes * 8
 
-print('\n1 - Enviar um arquivo !')
-print('dc - Desligar o cliente')
-print('dcs - Desligar o cliente e o servidor\n')
+# 9 Enviando o numero de pacotes ao servidor
+numero_de_pacotes = (file_size // pacote_em_bytes) + 1
+sock.sendall(numero_de_pacotes.to_bytes(4, "little"))
 
-while True:
-    i = input('Digite uma mensagem ou um comando: ')
+# 11 Enviando pacotes
+delay = 0.004
+tempo_estimado = numero_de_pacotes*(delay*1.2)
 
-    if i == '1':
-        #UDPClientSocket.sendto('Irá ser enviado um arquivo !', serverAddressPort)
-        caminho_arquivo = input('Informe o caminho do arquivo que deseja enviar !\n')
-        ini = time.time()
-        UDPClientSocket.sendto("Enviou arquivo", serverAddressPort)
-        fim = time.time()
-        print('Envio levou %.2f segundos' % (fim - ini))
-    elif i == 'dc':
-        break
-    else:
-         UDPClientSocket.sendto(str.encode(i), serverAddressPort)
+print(f"Enviando {numero_de_pacotes} pacotes ao servidor")
+print(f"Tempo estimado: {round(tempo_estimado)} sec")
 
-    if i == 'dcs':
-        break
-""" 
-UDPClientSocket.sendto(bytesToSend, serverAddressPort)
 
-msgFromServer = UDPClientSocket.recvfrom(bufferSize)
+for i in range(numero_de_pacotes):
+    packet = file.read(pacote_em_bytes)
+    sock.sendall(packet)
+    enviado = f"{int((i+1)*pacote_em_kilobytes)}/{int(pacote_em_kilobytes*numero_de_pacotes)}Kb"
+    print('\r'+enviado, end='')
+    time.sleep(delay)
 
-msg = "Message from Server {}".format(msgFromServer[0])
 
-print(msg) """
+# Limpando buffers e sockets
+sock.close()
+file.close()
