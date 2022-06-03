@@ -1,4 +1,4 @@
-# Projeto de Redes1
+# Projeto de Redes1 - Server-Client
 
 ## Projeto de Redes de Computadores 1 (2021.2) 2EE
 
